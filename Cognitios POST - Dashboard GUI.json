@@ -1,0 +1,84 @@
+{
+  "name": "Cognitios POST - Dashboard GUI",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "painel-pos-incidente",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        -16
+      ],
+      "id": "node_webhook_gui",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "content-type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        320,
+        -16
+      ],
+      "id": "node_respond_gui",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n<html lang=\"pt-br\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Cognitios POST - Painel SRE</title>\n    <script src=\"https://cdn.tailwindcss.com\"></script>\n    <script src=\"https://unpkg.com/lucide@latest\"></script>\n</head>\n<body class=\"min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans\">\n    \n    <script>\n        // --- CONFIGURAÇÃO DE AMBIENTE ---\n        const URLS = {\n            PLANILHA: 'https://docs.google.com/spreadsheets/d/ID_DA_SUA_PLANILHA/edit',\n            CHAT: 'https://URL_DO_SEU_N8N/webhook/ID_DO_WEBHOOK_CHAT/chat',\n            UPLOAD: 'https://URL_DO_SEU_N8N/form/ID_DO_FORMULARIO_UPLOAD',\n            RELATORIO: 'https://URL_DO_SEU_N8N/webhook/gerar-pos-incidente',\n            LIMPAR: 'https://URL_DO_SEU_N8N/webhook/limpar-dados'\n        };\n        // --------------------------------\n        // Lógica de botões e fetch interna...\n    </script>\n</body>\n</html>"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        80,
+        -16
+      ],
+      "id": "node_html_gui",
+      "name": "HTML"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
