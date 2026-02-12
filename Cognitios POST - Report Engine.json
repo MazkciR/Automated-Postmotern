@@ -1,0 +1,168 @@
+{
+  "name": "Cognitios POST - Report Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "ID_DA_SUA_PLANILHA_AQUI"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [-336, 48],
+      "id": "node_read_sheets",
+      "name": "Ler Planilha",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ID_SUA_CREDENCIAL_GOOGLE",
+          "name": "Conta Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.logs_formatados }}",
+        "options": {
+          "systemMessage": "=Você é um especialista sênior em SRE e analista de pós-incidentes. Sua tarefa é preencher um relatório de pós-incidente factual.\n\nREGRAS CRÍTICAS:\n1. NÃO USE MARKDOWN: Apenas texto simples.\n2. FIDELIDADE: Se a informação não estiver nos logs, responda 'Faltam dados nos logs'.\n\nESTRUTURA:\n1. Identificação do incidente\nAutor: [NOME_DO_AUTOR]\n...\n9. Conclusão"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [80, 32],
+      "id": "node_ai_agent",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set_data",
+              "name": "relatorio_data",
+              "value": "={{$now.format('dd-MM-yyyy')}}",
+              "type": "string"
+            },
+            {
+              "id": "set_desc",
+              "name": "relatorio_descrição-inicial",
+              "value": "={{ $json.output.match(/Descrição Inicial\\n(.*?)\\n\\n3. Timeline/s)?.[1].trim() }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [464, -160],
+      "id": "node_topics_main",
+      "name": "Tópicos principais"
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "ID_DO_TEMPLATE_GOOGLE_DOCS_AQUI",
+          "mode": "id"
+        },
+        "name": "=Relatório | Pós-Incidente | {{ $today.format('dd/MM/yyyy') }}",
+        "folderId": {
+          "__rl": true,
+          "value": "ID_DA_PASTA_DESTINO_AQUI",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [976, 48],
+      "id": "node_copy_template",
+      "name": "Copia Template",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "ID_SUA_CREDENCIAL_DRIVE",
+          "name": "Conta Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "replaceAll",
+              "text": "<colocar data>",
+              "replaceText": "={{ $('Tópicos principais').item.json.relatorio_data }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "[colocar a conclusão final]",
+              "replaceText": "={{ $('Tópicos principais').item.json.relatorio_conclusao }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1152, 48],
+      "id": "node_create_doc",
+      "name": "Cria Documento Incidente",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ID_SUA_CREDENCIAL_DOCS",
+          "name": "Conta Google Docs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": "ID_DA_SUA_PLANILHA_AQUI",
+        "sheetName": "gid=0",
+        "startIndex": 2,
+        "rowsToDelete": 500
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1744, 48],
+      "id": "node_clear_sheets",
+      "name": "Limpeza Planilha"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gerar-pos-incidente-template",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-592, 48],
+      "id": "node_webhook_trigger",
+      "name": "Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Ler Planilha", "type": "main", "index": 0 }]] },
+    "Ler Planilha": { "main": [[{ "node": "Realiza o Log", "type": "main", "index": 0 }]] },
+    "Realiza o Log": { "main": [[{ "node": "AI Agent1", "type": "main", "index": 0 }]] },
+    "AI Agent1": { "main": [
+      [{ "node": "Tópicos principais", "type": "main", "index": 0 }],
+      [{ "node": "Respostas Tópicos 5", "type": "main", "index": 0 }],
+      [{ "node": "Respostas Tópicos 7", "type": "main", "index": 0 }],
+      [{ "node": "Respostas Tópicos 8", "type": "main", "index": 0 }]
+    ]},
+    "Funil de respostas": { "main": [[{ "node": "Copia Template", "type": "main", "index": 0 }]] },
+    "Copia Template": { "main": [[{ "node": "Cria Documento Incidente", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
