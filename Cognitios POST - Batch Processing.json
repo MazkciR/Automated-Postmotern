@@ -1,0 +1,124 @@
+{
+  "name": "Cognitios POST - Batch Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Organizador de TIMELINE",
+        "formDescription": "Este formulário organiza arquivos de timeline brutos em dados estruturados em minutos.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Arquivo",
+              "fieldType": "file",
+              "acceptFileTypes": ".txt"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [112, -160],
+      "id": "node_form_trigger",
+      "name": "On form submission",
+      "webhookId": "ID_DO_WEBHOOK_AQUI"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.data }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Você é um assistente de ETL de alta precisão. Sua tarefa é ler o documento de log de incidente e transformá-lo em um array JSON.\n\nREGRAS:\n1. MEMÓRIA DE DATA: Guarde a data encontrada e aplique-a nos eventos seguintes.\n2. IDENTIFIQUE EVENTOS: Baseie-se em carimbos de hora ou identificação de responsável (ex: '(Analista A)').\n3. REFORMULE: Reescreva o conteúdo em linguagem profissional e clara, preservando dados técnicos (IPs, arquivos).\n4. SAÍDA: Apenas um array JSON [ ... ]."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [560, -160],
+      "id": "node_ai_agent",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [560, -16],
+      "id": "node_gemini_model",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ID_SUA_CREDENCIAL_GEMINI",
+          "name": "Sua Conta Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "Arquivo",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [352, -160],
+      "id": "node_extract_file",
+      "name": "Extract from File",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extração de segurança do JSON array da IA\nconst aiOutput = $('AI Agent').item.json.output;\nconst match = aiOutput.match(/\\[[\\s\\S]*\\]/);\nif (match && match[0]) {\n  try {\n    return JSON.parse(match[0]);\n  } catch (e) {\n    return { error: \"Erro no parse do array\" };\n  }\n}\nreturn { error: \"Nenhum array encontrado\" };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -160],
+      "id": "node_code_js",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "ID_DA_SUA_PLANILHA_AQUI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Hora da Mensagem": "={{ $json.horario }}",
+            "Tipo Mensagem": "={{ $json.tipo }}",
+            "Conteudo da Mensagem": "={{ $json.conteudo }}",
+            "Responsável": "={{ $json.responsavel }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1104, -160],
+      "id": "node_gsheets",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ID_SUA_CREDENCIAL_GOOGLE",
+          "name": "Conta Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "On form submission": { "main": [[{ "node": "Extract from File", "type": "main", "index": 0 }]] },
+    "AI Agent": { "main": [[{ "node": "Code in JavaScript", "type": "main", "index": 0 }]] },
+    "Google Gemini Chat Model": { "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]] },
+    "Extract from File": { "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]] },
+    "Code in JavaScript": { "main": [[{ "node": "Append row in sheet", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
